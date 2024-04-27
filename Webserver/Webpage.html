@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Launch Minecraft</title>
+    <style>
+    .video-container {
+    	position: fixed;
+    	bottom: 10px;
+    	right: 10px;
+    	width: 50%;
+    	padding-bottom: 28.125%;
+    	height: 0;
+    	background-color: #000;
+    	z-index: 1000;
+    	border: 1px solid #ccc;
+    	box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    .video-container iframe {
+    	position: absolute;
+    	top: 0;
+    	left: 0;
+    	width: 100%;
+    	height: 100%;
+    }
+	
+	body.light-mode {
+        background-color: #ffffff;
+        color: #000000;
+    }
+
+    body.dark-mode {
+        background-color: #000000;
+        color: #ffffff;
+    }
+		
+	.dark-mode :not(.DME):not(.video-container):not(.fullscreen-video) {
+       filter: invert(1) hue-rotate(180deg);
+    }
+    </style>
+    <script>
+	var launcherVersionRequired = 5;  // ANY TIME YOU UPDATE THE LAUNCHER APPLICATION CHANGE THIS NUMBER SO USERS CAN UPDATE
+	var clickAnywhereLaunchTriggered = false;
+	var changedSettings = {};
+	
+	// Function to set a cookie
+        function setCookie(name, value, days) {
+            var expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days*24*60*60*1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+        }
+
+        // Function to get a cookie
+        function getCookie(name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for(var i=0;i < ca.length;i++) {
+                var c = ca[i];
+                while (c.charAt(0)==' ') c = c.substring(1,c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+            }
+            return null;
+        }
+		
+		// Function to check if device supported
+		function checkDeviceSupport(){
+			let userAgent = navigator.userAgent || navigator.vendor || window.opera;
+			var isAgentMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+			var meetsRequirements = 'querySelector' in document && 'localStorage' in window && 'addEventListener' in window;
+			return !isAgentMobile && meetsRequirements;
+		}
+		
+		// Function to check if a string is a number 
+		function isNumber(string) {
+			return !isNaN(Number(string));
+		}
+
+		// Function to parse query parameters from URL
+		function getQueryParams() {
+			var queryParams = {};
+			var queryString = window.location.search.substring(1);
+			var pairs = queryString.split("&");
+			for (var i = 0; i < pairs.length; i++) {
+					var pair = pairs[i].split("=");
+					queryParams[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
+			}
+			return queryParams;
+		}
+		
+		// Function to display a notification
+		function showNotification(message, displayTime, textColor, backgroundColor) {
+			var notificationObject = document.getElementById("notification");
+			notificationObject.textContent = message;
+			notificationObject.style.color = (textColor !== null && typeof textColor !== 'undefined') ? textColor : "#ffffff";
+			notificationObject.style.backgroundColor = (backgroundColor !== null && typeof backgroundColor !== 'undefined') ? backgroundColor : "#000000";
+			notificationObject.style.display = 'block';
+
+			setTimeout(function() {
+				notificationObject.style.display = 'none';
+			}, (displayTime !== null && typeof displayTime !== 'undefined') ? displayTime : 3000);
+		}
+
+        // Function to launch Minecraft
+        function launchMinecraft() {
+	    var queryParams = getQueryParams();
+			var RetrievedMaxRam = null;
+			if(localStorage.getItem("Settings_MaxRam")) {
+				RetrievedMaxRam = localStorage.getItem("Settings_MaxRam");
+			}
+			if(isNumber(getCookie("Settings_MaxRam"))) {
+				RetrievedMaxRam = getCookie("Settings_MaxRam");
+			}
+			// Set retrieved value to default if its not a real number
+			if(!isNumber(RetrievedMaxRam)) {
+				RetrievedMaxRam = 4096; // Default is 4096
+			}
+            window.location.href = 'MinecraftJServ://' + launcherVersionRequired + '/' + RetrievedMaxRam + '/' + queryParams.arg1 + '/' + queryParams.arg2 + '/' + queryParams.arg3;
+            awaitEndpointResult();
+        }
+
+		// Download installation files
+		function downloadInstaller() {
+			document.getElementById('autoDownloadInstallerBat').click();
+			document.getElementById('autoDownloadInstallerZip').click();
+		}
+
+		// Launch any webpage
+		function showVideo() {
+			var videoContainer = document.getElementById('videoContainer');
+			videoContainer.style.display = 'block';
+		}
+
+		// Wait until the endpoint result is set
+		function awaitEndpointResult() {
+			while (true) {
+			if (getCookie("launchEndpointRecieved") == "true" || localStorage.getItem("launchEndpointRecieved") == "true") {
+				setCookie("launchEndpointRecieved", false, 365);
+				localStorage.removeItem("launchEndpointRecieved");
+				window.close();
+				break; // Exit the loop when the cookie is found
+			}
+			setTimeout(() => {
+				awaitEndpointResult();
+			}, 250);
+			break; // Break the loop temporarily to allow setTimeout to execute
+			}
+		}
+
+	// Save page save settings button clicked
+	function applySettings() {
+		document.getElementById("applySettingsButton").disabled = true;
+		var newMaxRam = document.getElementById("maximumRam_Setting").value;
+		var newTheme = document.getElementById("themeDropdown").value;
+		
+		var success = true;
+		if(changedSettings.maxram == true) {
+			if(newMaxRam) {
+				if(isNumber(newMaxRam)) {
+					var newMaxRamAsNumber = Number(newMaxRam);
+					if(Number.isInteger(newMaxRamAsNumber)) {
+						if(newMaxRamAsNumber > 2047){
+							showNotification("Successfully changed max ram!");
+							localStorage.setItem("Settings_MaxRam", newMaxRamAsNumber);
+							setCookie("Settings_MaxRam", newMaxRamAsNumber, 1825);
+						}
+						else {
+							success = false;
+						}
+					}
+					else {
+						success = false;
+					}
+				}
+				else {
+					success = false;
+				}
+			}
+			else {
+				success = false;
+			}
+			
+			if(success == false) {
+				showNotification("Invalid number! Must be a positive whole number greater than 2048 (2048 is the minimum ram requirement)", 5000);
+				document.getElementById("maximumRam_Setting").value = "Invalid Number";
+			}
+		}
+		
+		if(changedSettings.theme == true) {
+			if(newTheme) {
+				localStorage.setItem("Settings_Theme", newTheme);
+				setCookie("Settings_Theme", newTheme, 1825);
+			}
+		}
+		
+		changedSettings.maxram = false;
+		changedSettings.theme = false;
+		applyTheme();
+	}
+	
+	// Apply theme
+	function applyTheme() {
+		var theme = null;
+		if(localStorage.getItem("Settings_Theme")) {
+			var get = localStorage.getItem("Settings_Theme");
+			if(_ == "Light" || _ == "Dark") {
+				theme = _;
+			}
+		}
+		if(getCookie("Settings_Theme")) {
+			var _ = getCookie("Settings_Theme");
+			if(_ == "Light" || _ == "Dark") {
+				theme = _;
+			}
+		}
+		if(theme == null) {
+			theme = "Light";
+		}
+	
+		if(theme == "Dark") {
+			document.body.classList.add('dark-mode');
+			document.body.classList.remove("light-mode");
+		}
+		if(theme == "Light") {
+			document.body.classList.add('light-mode');
+			document.body.classList.remove("dark-mode");
+		}
+	}
+
+	// Load different varients of the page based off of query
+	function loadPageVarient() {
+		if(!checkDeviceSupport()) {
+			document.getElementById("unsupportedDevice").style.display = "block";
+			return;
+		}
+	
+	    var queryParams = getQueryParams();
+	    if(queryParams.arg1 == "install") { // INSTALL
+			document.getElementById("installPage").style.display = "block";
+			return;
+	    }
+	    if(queryParams.arg1 == "returnEndpointSuccess") { // RETURN ENDPOINT
+			// Mark endpoint recieved
+			document.getElementById("launchEndpointSuccess").style.display = "block";
+			localStorage.setItem("launchEndpointRecieved", true);
+	    	setCookie("launchEndpointRecieved", true, 1);
+			window.close();
+			return;
+	    }
+		if(queryParams.arg1 == "mysettings") { // SETTINGS
+			var RetrievedMaxRam = null;
+			if(localStorage.getItem("Settings_MaxRam")) {
+				RetrievedMaxRam = localStorage.getItem("Settings_MaxRam");
+			}
+			if(isNumber(getCookie("Settings_MaxRam"))) {
+				RetrievedMaxRam = getCookie("Settings_MaxRam");
+			}
+			// Set retrieved value to default if its not a real number
+			if(!isNumber(RetrievedMaxRam)) {
+				RetrievedMaxRam = 4096; // Default is 4096
+			}
+			document.getElementById("maximumRam_Setting").placeholder = RetrievedMaxRam;
+			
+			var RetrievedTheme = null;
+			if(localStorage.getItem("Settings_Theme")) {
+				var get = localStorage.getItem("Settings_Theme");
+				if(_ == "Light" || _ == "Dark") {
+					RetrievedTheme = _;
+				}
+			}
+			if(getCookie("Settings_Theme")) {
+				var _ = getCookie("Settings_Theme");
+				if(_ == "Light" || _ == "Dark") {
+					RetrievedTheme = _;
+				}
+			}
+			if(RetrievedTheme == null) {
+				RetrievedTheme = "Light";
+			}
+			document.getElementById("themeDropdown").value = RetrievedTheme;
+			document.getElementById("mySettingsPage").style.display = "block";
+			return;
+		}
+	    if(!queryParams.hasOwnProperty("arg1") || !queryParams.hasOwnProperty("arg2") || !queryParams.hasOwnProperty("arg3")) { // LAUNCH
+	        document.getElementById("badRequest").style.display = "block";
+			return;
+	    }
+	    document.getElementById("launchMessage").style.display = "block";
+	    launchMinecraft();
+
+	    // In case it doesnt launch due to denied request
+	    document.addEventListener('click', function(event) {
+		if (clickAnywhereLaunchTriggered == false) {
+			clickAnywhereLaunchTriggered = true;
+			launchMinecraft();
+		}});
+	}
+
+        window.onload = loadPageVarient;  
+		
+		// WAITS FOR PAGE TO LOAD BEFORE REGISTERING OBJECT EVENTS (any object that must load and needs an event listener should be put here)
+		document.addEventListener("DOMContentLoaded", function() {
+			applyTheme();
+			document.getElementById("maximumRam_Setting").addEventListener("input", function() {
+				document.getElementById("applySettingsButton").disabled = false;
+				changedSettings.maxram = true;
+			});
+			document.getElementById('themeDropdown').addEventListener('change', function() {
+				document.getElementById("applySettingsButton").disabled = false;
+				changedSettings.theme = true;
+			});
+			document.addEventListener("fullscreenchange", function () {
+				var videoContainer = document.querySelector(".video-container iframe");
+				if (document.fullscreenElement === videoContainer) {
+					videoContainer.classList.add("fullscreen-video");
+				} else {
+					videoContainer.classList.remove("fullscreen-video");
+				}
+			});
+		});
+    </script>
+</head>
+<body>
+    <style>
+        #launchMessage {
+        display: none;
+        font-size: larger;
+    }
+    </style>
+    <div id="launchMessage">
+        <p>Launching...</p>
+		<p>(If it wont launch try clicking anywhere on this page to manual launch)</p>
+	</div>
+
+    <style>
+        #badRequest {
+        display: none;
+        font-size: larger;
+    }
+    </style>
+    <div id="badRequest" style="display: none;">
+        <p>404 not found. Provided query arguments are invalid.</p>
+    </div>
+
+    <div id="installPage" style="display: none;">
+	<div id="videoContainer" class="video-container" style="display:none;">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/5fJck8C4raM" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; 	picture-in-picture" allowfullscreen></iframe>
+    </div>
+
+    <p>Welcome to the installation page! This includes a step by step guide on how to install the quick launcher.</p>
+	<p>1. Click the button below to download the nessesary files. You may need to allow multiple file downloads if your browser prompts you about it.</p>
+	<a href="Files/Install.bat" download="Install.bat" id="autoDownloadInstallerBat" style="display: none;">Download the Bat</a>
+	<a href="Files/LaunchApplication.zip" download="LaunchApplication.zip" id="autoDownloadInstallerZip" style="display: none;">Download the Zip</a>
+	<button onclick="downloadInstaller()">Download Installer</button>
+	<p>2. Once everything has finished downloading, check to make sure you have these two files: Install (batch file) and LaunchApplication (zip file)</p>
+	<p>DO NOT extract the zip file. If you already have, this is ok you can just delete the extracted version.</p>
+	<p>3. Verify that the Install file and LaunchApplication file are in the same folder. The install file is dependant on the LaunchApplication file being in the same place.</p>
+	<p>4. Double click the Install file to run it. If the "Windows protected your pc" window appears, click "more info" then "Run Anyway". This is simply a windows security measure and does not mean the file is malicious in any way. The file will require administrative permissions so when it says "Do you want to allow this app to make changes to your device" select yes (required).</p>
+	<p>5. Wait for the installer to finish. If there are no issues installing a window should come up confirming it succeeded. You may close the command prompt window (black box) and delete both the Install file and LaunchApplication file.</p>
+	<p>6. Enjoy being able to use quick launch link schemes! You have completed the tutorial!</p>
+	<p></p>
+	<p>Not the brightest? Thats OK! You can watch this youtube video to get a visual representation of the steps presented.</p>
+	<button onclick="showVideo()">Video Tutorial</button>
+    </div>
+
+    <div id="launchEndpointSuccess" style="display: none;">
+        <p>Endpoint recieved!</p>
+    </div>
+	
+	<style>
+        #unsupportedDevice {
+        display: none;
+        font-size: larger;
+    }
+    </style>
+	<div id="unsupportedDevice" style="display: none;">
+		<p>Your device is not supported!</p>
+	</div>
+
+	
+	<style>
+		#notification {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		background-color: #f44336; /* Red background color */
+		color: white;
+		text-align: center;
+		padding: 10px;
+		display: none; /* Initially hide the notification */
+	}
+	</style>
+	<div class="DME" id="notification"></div> <!-- REGISTER NOTIFICATION -->
+	
+	<div id="mySettingsPage" style="display: none;">
+		<h1>Settings:</h1>
+		<form>
+			<label class="DME" for="maximumRam_Setting">Max RAM:</label><br>
+			<input type="number" id="maximumRam_Setting" name="maximumRam"></input><br>
+			<br>
+			<label class="DME">Theme:</label>
+			<select id="themeDropdown" name="themeDropdown">
+				<option value="Light">Light</option>
+				<option value="Dark">Dark</option>
+			</select>
+			<button type="button" onclick="applySettings()" id="applySettingsButton", disabled>Apply Settings</button>
+		</form>
+	</div>
+</body>
+</html>
