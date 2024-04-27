@@ -1,4 +1,4 @@
-@echo off
+
 setlocal
 
 set "minecraftLaunchSchemePath=%USERPROFILE%\MinecraftLaunchScheme"
