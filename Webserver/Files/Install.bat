@@ -28,7 +28,7 @@ rmdir "%SystemRoot%\System32\config\Test" > nul 2>&1
 
 rem Download latest launch application from site
 set "updateDir=%USERPROFILE%\MinecraftLaunchScheme-Updater"
-if exist "%updateDir%" rmdir "%updateDir%"
+if exist "%updateDir%" rmdir /s /q "%updateDir%"
 mkdir "%updateDir%"
 start /wait curl -L -o %updateDir%\LaunchApplication.zip "https://bigtylis.github.io/MinecraftQuickLauncher/Files/LaunchApplication.zip"
 
